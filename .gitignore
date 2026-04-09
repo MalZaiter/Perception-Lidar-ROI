@@ -1,0 +1,36 @@
+# Build and install
+build/
+install/
+log/
+*.egg-info/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ROS
+devel/
+
+# Output frames and logs
+src/euclidean_clustering/bag_output_frames/
+src/euclidean_clustering/lidarpipeline/recordings/*.csv
+diagnostics*.csv
+timings*.csv
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db

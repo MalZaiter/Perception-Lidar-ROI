@@ -1,0 +1,362 @@
+[
+  {
+    "original_points": 53683,
+    "old_box": {
+      "filtered_points": 582,
+      "time_ms": 9.900331497192383,
+      "reduction_percent": 98.91585790659985
+    },
+    "pizza_slice": {
+      "filtered_points": 1189,
+      "time_ms": 9.038925170898438,
+      "reduction_percent": 97.78514613564816
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1253,
+      "time_ms": 9.860754013061523,
+      "reduction_percent": 97.66592776111618
+    }
+  },
+  {
+    "original_points": 53727,
+    "old_box": {
+      "filtered_points": 603,
+      "time_ms": 4.53639030456543,
+      "reduction_percent": 98.87765927745826
+    },
+    "pizza_slice": {
+      "filtered_points": 1233,
+      "time_ms": 9.844541549682617,
+      "reduction_percent": 97.70506449271316
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1269,
+      "time_ms": 9.82975959777832,
+      "reduction_percent": 97.638059076442
+    }
+  },
+  {
+    "original_points": 53806,
+    "old_box": {
+      "filtered_points": 562,
+      "time_ms": 4.420757293701172,
+      "reduction_percent": 98.95550682080065
+    },
+    "pizza_slice": {
+      "filtered_points": 1230,
+      "time_ms": 9.97614860534668,
+      "reduction_percent": 97.71400959000854
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1289,
+      "time_ms": 9.598016738891602,
+      "reduction_percent": 97.60435639148051
+    }
+  },
+  {
+    "original_points": 53671,
+    "old_box": {
+      "filtered_points": 606,
+      "time_ms": 4.394769668579102,
+      "reduction_percent": 98.87089862309254
+    },
+    "pizza_slice": {
+      "filtered_points": 1184,
+      "time_ms": 9.889841079711914,
+      "reduction_percent": 97.79396694676828
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1261,
+      "time_ms": 9.803533554077148,
+      "reduction_percent": 97.65050027016451
+    }
+  },
+  {
+    "original_points": 53844,
+    "old_box": {
+      "filtered_points": 621,
+      "time_ms": 5.087375640869141,
+      "reduction_percent": 98.84666815244039
+    },
+    "pizza_slice": {
+      "filtered_points": 1218,
+      "time_ms": 9.893655776977539,
+      "reduction_percent": 97.73790951638065
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1283,
+      "time_ms": 9.785652160644531,
+      "reduction_percent": 97.6171904019018
+    }
+  },
+  {
+    "original_points": 53575,
+    "old_box": {
+      "filtered_points": 620,
+      "time_ms": 5.7830810546875,
+      "reduction_percent": 98.84274381707885
+    },
+    "pizza_slice": {
+      "filtered_points": 1217,
+      "time_ms": 8.027076721191406,
+      "reduction_percent": 97.72841810545964
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1280,
+      "time_ms": 9.752035140991211,
+      "reduction_percent": 97.610825944937
+    }
+  },
+  {
+    "original_points": 53756,
+    "old_box": {
+      "filtered_points": 608,
+      "time_ms": 6.752967834472656,
+      "reduction_percent": 98.8689634645435
+    },
+    "pizza_slice": {
+      "filtered_points": 1196,
+      "time_ms": 10.011672973632812,
+      "reduction_percent": 97.77513207827964
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1289,
+      "time_ms": 9.535551071166992,
+      "reduction_percent": 97.60212813453381
+    }
+  },
+  {
+    "original_points": 53766,
+    "old_box": {
+      "filtered_points": 586,
+      "time_ms": 5.001068115234375,
+      "reduction_percent": 98.91009187962652
+    },
+    "pizza_slice": {
+      "filtered_points": 1176,
+      "time_ms": 10.677099227905273,
+      "reduction_percent": 97.8127441133802
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1267,
+      "time_ms": 9.955644607543945,
+      "reduction_percent": 97.64349216977271
+    }
+  },
+  {
+    "original_points": 53773,
+    "old_box": {
+      "filtered_points": 552,
+      "time_ms": 4.963397979736328,
+      "reduction_percent": 98.97346251836423
+    },
+    "pizza_slice": {
+      "filtered_points": 1142,
+      "time_ms": 9.897708892822266,
+      "reduction_percent": 97.87625760139848
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1267,
+      "time_ms": 9.665727615356445,
+      "reduction_percent": 97.6437989325498
+    }
+  },
+  {
+    "original_points": 53757,
+    "old_box": {
+      "filtered_points": 572,
+      "time_ms": 4.539251327514648,
+      "reduction_percent": 98.93595252711275
+    },
+    "pizza_slice": {
+      "filtered_points": 1219,
+      "time_ms": 9.737253189086914,
+      "reduction_percent": 97.73238834012315
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1274,
+      "time_ms": 9.78851318359375,
+      "reduction_percent": 97.63007608311476
+    }
+  },
+  {
+    "original_points": 53616,
+    "old_box": {
+      "filtered_points": 574,
+      "time_ms": 4.835844039916992,
+      "reduction_percent": 98.92942405252163
+    },
+    "pizza_slice": {
+      "filtered_points": 1175,
+      "time_ms": 8.745431900024414,
+      "reduction_percent": 97.80849000298419
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1242,
+      "time_ms": 9.974956512451172,
+      "reduction_percent": 97.683527305282
+    }
+  },
+  {
+    "original_points": 53779,
+    "old_box": {
+      "filtered_points": 571,
+      "time_ms": 4.832983016967773,
+      "reduction_percent": 98.9382472712397
+    },
+    "pizza_slice": {
+      "filtered_points": 1142,
+      "time_ms": 9.903430938720703,
+      "reduction_percent": 97.8764945424794
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1226,
+      "time_ms": 9.70911979675293,
+      "reduction_percent": 97.72029974525373
+    }
+  },
+  {
+    "original_points": 53737,
+    "old_box": {
+      "filtered_points": 594,
+      "time_ms": 5.087137222290039,
+      "reduction_percent": 98.89461637233191
+    },
+    "pizza_slice": {
+      "filtered_points": 1149,
+      "time_ms": 11.77072525024414,
+      "reduction_percent": 97.86180843738951
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1222,
+      "time_ms": 9.719610214233398,
+      "reduction_percent": 97.72596162792861
+    }
+  },
+  {
+    "original_points": 53647,
+    "old_box": {
+      "filtered_points": 571,
+      "time_ms": 5.233287811279297,
+      "reduction_percent": 98.93563479784517
+    },
+    "pizza_slice": {
+      "filtered_points": 1109,
+      "time_ms": 9.72437858581543,
+      "reduction_percent": 97.9327828210338
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1195,
+      "time_ms": 7.870674133300781,
+      "reduction_percent": 97.7724756277145
+    }
+  },
+  {
+    "original_points": 53667,
+    "old_box": {
+      "filtered_points": 605,
+      "time_ms": 5.103826522827148,
+      "reduction_percent": 98.8726778094546
+    },
+    "pizza_slice": {
+      "filtered_points": 1095,
+      "time_ms": 9.831905364990234,
+      "reduction_percent": 97.95964000223601
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1160,
+      "time_ms": 9.737491607666016,
+      "reduction_percent": 97.83852274209477
+    }
+  },
+  {
+    "original_points": 53661,
+    "old_box": {
+      "filtered_points": 604,
+      "time_ms": 4.918336868286133,
+      "reduction_percent": 98.87441531093344
+    },
+    "pizza_slice": {
+      "filtered_points": 1070,
+      "time_ms": 9.407758712768555,
+      "reduction_percent": 98.00600063360727
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1168,
+      "time_ms": 10.250091552734375,
+      "reduction_percent": 97.82337265425541
+    }
+  },
+  {
+    "original_points": 53762,
+    "old_box": {
+      "filtered_points": 578,
+      "time_ms": 4.6234130859375,
+      "reduction_percent": 98.92489118708382
+    },
+    "pizza_slice": {
+      "filtered_points": 1047,
+      "time_ms": 9.80377197265625,
+      "reduction_percent": 98.05252780774525
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1127,
+      "time_ms": 9.783506393432617,
+      "reduction_percent": 97.90372381979837
+    }
+  },
+  {
+    "original_points": 53688,
+    "old_box": {
+      "filtered_points": 561,
+      "time_ms": 4.947185516357422,
+      "reduction_percent": 98.95507375949933
+    },
+    "pizza_slice": {
+      "filtered_points": 1019,
+      "time_ms": 10.962963104248047,
+      "reduction_percent": 98.10199672180003
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1097,
+      "time_ms": 9.314537048339844,
+      "reduction_percent": 97.95671285948443
+    }
+  },
+  {
+    "original_points": 53792,
+    "old_box": {
+      "filtered_points": 583,
+      "time_ms": 4.203081130981445,
+      "reduction_percent": 98.91619571683522
+    },
+    "pizza_slice": {
+      "filtered_points": 985,
+      "time_ms": 10.195016860961914,
+      "reduction_percent": 98.1688726948245
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1042,
+      "time_ms": 9.756803512573242,
+      "reduction_percent": 98.06290898274837
+    }
+  },
+  {
+    "original_points": 53971,
+    "old_box": {
+      "filtered_points": 581,
+      "time_ms": 4.166126251220703,
+      "reduction_percent": 98.92349595152953
+    },
+    "pizza_slice": {
+      "filtered_points": 965,
+      "time_ms": 10.289430618286133,
+      "reduction_percent": 98.21200274221341
+    },
+    "lut_bounding_box": {
+      "filtered_points": 1074,
+      "time_ms": 10.764360427856445,
+      "reduction_percent": 98.01004243019399
+    }
+  }
+]

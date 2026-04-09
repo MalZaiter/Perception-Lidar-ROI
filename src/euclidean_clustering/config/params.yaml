@@ -1,0 +1,55 @@
+/lidar_processor_node:
+  ros__parameters:
+    # FILTERING PARAMS
+    # which ROI/filter algorithm to use: box, pizza, or lut
+    filter_algorithm: "box"
+
+
+    #filter viewable bounds (used by original box filter)
+    x: [0.0, 8.0]
+    y: [-4.0, 8.0]
+    z: [-2.0, 2.0]
+
+    #car dimensions for filtering out points on the car itself
+    car_x: [-1.0, 1.0]
+    car_y: [-0.5, 0.5]
+
+
+
+
+    #ground and wall removal 
+
+    #ground removal params
+    ground_level: 0.1 #10cm
+    point_num: 10
+    distance_threshold: 0.06
+    ransac_n: 4
+    num_iterations: 200
+    horizontal_plane_gradient: 0.8 
+
+    # Downsampling voxel size
+    voxel_size: 0.03
+
+    # Pizza slice filter specific params
+    pizza_max_distance: 20.0
+    pizza_min_angle_deg: -45.0
+    pizza_max_angle_deg: 45.0
+    pizza_z: [-2.0, 2.0]
+
+    # LUT bounding box filter specific params (basic distance/z bounds
+    # are used unless a LUT has been built)
+    lut_max_distance: 20.0
+    lut_z: [-2.0, 2.0]
+    
+    # LUT cone detection parameters - stricter values prevent false positives
+    # from poisoning the corridor in early frames
+    lut_max_cone_lateral: 2.5  # max lateral distance from centerline (meters)
+    lut_max_track_half_width: 2.0  # max half-width of left/right cone pair
+
+
+    #CLUSTERING PARAMS
+
+    # Clustering Params
+    cluster_distance_threshold: 0.2 #20 cm between points
+    cluster_min_size: 2
+    cluster_max_size: 100

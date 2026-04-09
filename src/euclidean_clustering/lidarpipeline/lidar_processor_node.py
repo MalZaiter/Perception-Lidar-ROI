@@ -51,8 +51,8 @@ class LidarNode(Node):
                 # LUT bounding box filter params
                 ('lut_max_distance', 20.0),
                 ('lut_z', [-2.0, 2.0]),
-                ('lut_max_cone_lateral', 4.0),  # Increased from 2.5 to match y bounds [-4.0, 8.0]
-                ('lut_max_track_half_width', 3.0),  # Increased from 2.0 to allow up to 6m wide corridors
+                ('lut_max_cone_lateral', 2.5),
+                ('lut_max_track_half_width', 2.0),
 
                 ('voxel_size', 0.03),
 
@@ -189,19 +189,10 @@ class LidarNode(Node):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(base_points.copy())
 
-        # ── Pre-ROI ground removal ───────────────────────────────────────────
-        # For pizza: already done here (existing behaviour).
-        # For lut: apply ground removal on the full basic-bounds cloud BEFORE
-        #   the corridor filter so RANSAC always has enough ground candidates,
-        #   regardless of how small the LUT is in early frames.
+        # For the pizza algorithm, remove ground on the full field of view
+        # *before* applying the pizza slice ROI.
         if algo_key == 'pizza':
             pcd = self.pizza_filter.removeGround(pcd)
-        elif algo_key == 'lut':
-            # First restrict to basic distance/z bounds so RANSAC doesn't
-            # operate on 100k+ points, then remove ground.
-            pcd = self.lut_filter._filterBasicBounds(pcd)
-            pcd = self.lut_filter.removeGround(pcd)
-        # ────────────────────────────────────────────────────────────────────
 
         # Measure full pipeline time for this algorithm on this frame
         pipe_start = time.perf_counter_ns()
@@ -215,7 +206,7 @@ class LidarNode(Node):
             pcd = self.pizza_filter.filterPizzaSlice(pcd)
             label = 'Pizza Slice'
         elif algo_key == 'lut':
-            pcd = self.lut_filter.filterWithLUT(pcd, margin=1.5)
+            pcd = self.lut_filter.filterWithLUT(pcd)
             label = 'LUT Bounding Box'
         elif algo_key == 'lut_basic':
             # Simple distance + height bounds (no corridor, no cones)
@@ -255,14 +246,13 @@ class LidarNode(Node):
 
         after_car = len(pcd.points)
 
-        # Ground removal — already done pre-ROI for 'lut'.
+        # Ground removal
         if algo_key == 'box':
             pcd = self.filter.removeGround(pcd)
         elif algo_key == 'pizza':
-            pass   # done before ROI
-        elif algo_key == 'lut':
-            pass   # done before ROI (see pre-ROI block above)
-        elif algo_key == 'lut_basic':
+            # Ground already removed before ROI for pizza; no-op here.
+            pass
+        elif algo_key in ('lut', 'lut_basic'):
             pcd = self.lut_filter.removeGround(pcd)
 
         after_ground = len(pcd.points)
@@ -407,8 +397,6 @@ class LidarNode(Node):
             cones = self.lut_filter.detectCones(result['pcd'], cluster_arrays)
             num_detected_cones = len(cones)
             if cones:
-                # Use only the current frame's cones — accumulating positions
-                # across frames is wrong because coordinates are sensor-local.
                 self.lut_filter.buildLUT(cones)
         cluster_end = time.perf_counter_ns()
         cluster_time_ms = (cluster_end - cluster_start) / 1e6

@@ -189,8 +189,7 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
 
         for x in x_positions:
             # Find cones near this x position (within tolerance)
-            # Widened from 1.5x to 5.0x to allow cones spaced 3-5m apart to pair
-            tolerance = resolution * 5.0
+            tolerance = resolution * 1.5
             nearby_cones = cones_array[
                 np.abs(cones_array[:, 0] - x) <= tolerance
             ]
@@ -213,56 +212,24 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
                     if half_width > self.max_track_half_width:
                         continue
 
-                    # EMA smoothing and rate limiting to reject abrupt changes
-                    alpha = 0.2  # Exponential moving average factor
-                    max_width_change = 0.2  # Maximum acceptable width change (meters)
-                    
-                    if x in self.lut_width:
-                        # Check for abrupt width changes (possible mislabeling or outliers)
-                        if abs(half_width - self.lut_width[x]) > max_width_change:
-                            continue  # Skip this entry; don't update
-                        # Apply EMA smoothing to existing entries
-                        self.lut_centerline[x] = alpha * y_center + (1 - alpha) * self.lut_centerline[x]
-                        self.lut_width[x] = alpha * half_width + (1 - alpha) * self.lut_width[x]
-                    else:
-                        # First time seeing this X position
-                        self.lut_centerline[x] = y_center
-                        self.lut_width[x] = half_width
+                    self.lut_centerline[x] = y_center
+                    self.lut_width[x] = half_width
 
-        # Apply sliding window LUT: keep only entries within ±max_distance of cone center
-        # This makes LUT spatially consistent instead of temporally arbitrary
-        if len(self.lut_centerline) > 0:
-            # Compute center of current cones using median (robust to outliers)
-            if len(cones_array) > 0:
-                cone_x = cones_array[:, 0]
-                x_center = np.median(cone_x)  # Median more robust than mean for outliers
-                
-                # Define window around current cone center
-                x_min_window = x_center - self.max_distance
-                x_max_window = x_center + self.max_distance
-                
-                # Remove LUT entries outside the window
-                x_keys_to_remove = [
-                    x for x in self.lut_centerline.keys()
-                    if x < x_min_window or x > x_max_window
-                ]
-                
-                for x_old in x_keys_to_remove:
-                    self.lut_centerline.pop(x_old, None)
-                    self.lut_width.pop(x_old, None)
-        
-        # DEBUG: Confirm LUT population success
-        print(f"[buildLUT] gated={len(gated_cones)} cones, lut_size={len(self.lut_centerline)}")
+        # Enforce maximum LUT size: when it exceeds 50, remove 10 oldest entries
+        # This prevents unbounded growth while maintaining corridor continuity
+        if len(self.lut_centerline) > self._max_lut_size:
+            # Sort by x position (oldest/smallest X values first)
+            x_positions_sorted = sorted(self.lut_centerline.keys())
+            x_to_remove = x_positions_sorted[:10]  # Remove first 10 (oldest)
+            
+            for x_old in x_to_remove:
+                self.lut_centerline.pop(x_old, None)
+                self.lut_width.pop(x_old, None)
 
     def filterWithLUT(self, pcd: o3d.geometry.PointCloud,
-                      margin: float = 0.5) -> o3d.geometry.PointCloud:
+                      margin: float = 3.0) -> o3d.geometry.PointCloud:
         """
         Filter point cloud using the Look-Up Table (corridor filtering).
-        
-        Filters points by:
-        1. X range: points within the LUT's X coverage (±1-2m buffer)
-        2. Lateral corridor: points within centerline ± width + margin
-        3. Distance/Z bounds: standard distance and height filtering
         
         Parameters
         ----------
@@ -270,8 +237,8 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
             Input point cloud
         margin : float
             Additional lateral margin around the corridor (in meters).
-            Default is 0.5m to provide tight filtering while allowing
-            for minor position noise.
+            Default is 3.0 m to allow for curves and slight
+            misalignments while still rejecting far-off noise.
             
         Returns
         -------
@@ -287,59 +254,61 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         y = points[:, 1]
         z = points[:, 2]
 
-        # Build sorted LUT arrays once for full vectorization
-        lut_x_sorted = np.array(sorted(self.lut_centerline.keys()))
-        if len(lut_x_sorted) == 0:
+        # Initialize mask (keep all points initially)
+        mask = np.ones(len(points), dtype=bool)
+
+        # Create LUT position array once (not per-point)
+        lut_x_positions = np.array(sorted(self.lut_centerline.keys()))
+        if len(lut_x_positions) == 0:
             # If LUT not built, return all points within basic bounds
             return self._filterBasicBounds(pcd)
-        
-        lut_y_arr = np.array([self.lut_centerline[xi] for xi in lut_x_sorted])
-        lut_w_arr = np.array([self.lut_width[xi] for xi in lut_x_sorted])
-        
-        lut_x_min = float(lut_x_sorted[0])
-        lut_x_max = float(lut_x_sorted[-1])
-        
-        # Only keep points in the X range the LUT actually covers
-        # ±1-2m buffer to allow slight extrapolation beyond tracked cones
-        x_in_range = (x >= lut_x_min - 1.0) & (x <= lut_x_max + 2.0)
-        
-        # Vectorized nearest LUT entry lookup using binary search
-        idx = np.searchsorted(lut_x_sorted, x, side='left')
-        idx = np.clip(idx, 0, len(lut_x_sorted) - 1)
-        
-        # Compare with previous entry to find closest neighbor
-        idx_prev = np.maximum(idx - 1, 0)
-        use_prev = (idx > 0) & (np.abs(lut_x_sorted[idx_prev] - x) < np.abs(lut_x_sorted[idx] - x))
-        idx = np.where(use_prev, idx_prev, idx)
-        
-        # Fetch LUT values for all points at once
-        y_center = lut_y_arr[idx]
-        half_width = lut_w_arr[idx]
-        
-        # Vectorized corridor mask: points within centerline ± (width + margin)
-        corridor_mask = np.abs(y - y_center) <= (half_width + margin)
-        
-        # Vectorized distance and z bounds
+
+        # For each point, check if it's within the corridor
+        for i in range(len(points)):
+            x_pos = x[i]
+
+            # Find nearest x in LUT using sorted array
+            idx = np.searchsorted(lut_x_positions, x_pos, side='left')
+            
+            # Handle edge cases
+            if idx >= len(lut_x_positions):
+                idx = len(lut_x_positions) - 1
+            elif idx > 0:
+                # Check which is closer: idx or idx-1
+                if np.abs(lut_x_positions[idx - 1] - x_pos) < np.abs(lut_x_positions[idx] - x_pos):
+                    idx = idx - 1
+            
+            nearest_x = lut_x_positions[idx]
+
+            y_center = self.lut_centerline[nearest_x]
+            half_width = self.lut_width[nearest_x]
+
+            # Check if point is within corridor (centerline ± width + margin)
+            max_y_deviation = half_width + margin
+            y_offset = y[i] - y_center
+
+            if np.abs(y_offset) > max_y_deviation:
+                mask[i] = False
+
+        # Also apply z and distance bounds
         distance = np.sqrt(x**2 + y**2)
         bound_mask = (
             (distance <= self.max_distance)
             & (z >= self.z_min)
             & (z <= self.z_max)
         )
-        
-        # Combine all masks
-        mask = corridor_mask & bound_mask & x_in_range
-        
+        mask = mask & bound_mask
+
         # Store diagnostics for this filtering pass
         self._lut_filter_diagnostics = {
             'input_count': len(points),
-            'corridor_pass': int(np.sum(corridor_mask & x_in_range)),
+            'corridor_pass': int(np.sum(mask & ~bound_mask + bound_mask)) if len(self.lut_centerline) > 0 else len(points),
             'bound_pass': int(np.sum(bound_mask)),
             'final_output': int(np.sum(mask)),
             'margin': margin,
             'lut_size': len(self.lut_centerline),
         }
-        
+
         return pcd.select_by_index(np.where(mask)[0])
 
     def _filterBasicBounds(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
@@ -397,12 +366,7 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
                 num_iterations=self.num_iterations,
             )
 
-            # FIX A: Add inlier ratio guard to ensure plane fitting actually succeeded
-            # If the plane only fits a small fraction of ground candidates, RANSAC failed
-            # (e.g., due to car rotation) and we should not apply the removal.
-            inlier_ratio = len(inliers) / max(len(ground_candidates), 1)
-            if (abs(plane_model[2]) > self.horizontal_plane_gradient
-                    and inlier_ratio > 0.05):
+            if abs(plane_model[2]) > self.horizontal_plane_gradient:
                 pcd = pcd.select_by_index(ground_candidates[inliers], invert=True)
 
         return pcd

@@ -25,20 +25,18 @@ class LidarNode(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ('filter_algorithm', 'box'), # 'box', 'pizza', 'lut'
-                ('x', [-20.0, 20.0]),
-                ('y', [-20.0, 20.0]),
+                ('filter_algorithm', 'box'),
+                ('x', [0.0, 8.0]),
+                ('y', [-4.0, 8.0]),
                 ('z', [-2.0, 2.0]),
-
 
                 ('car_x', [-1.0, 1.0]),
                 ('car_y', [-0.5, 0.5]),
 
-
-                ('ground_level', 0.2),
+                ('ground_level', 0.1),
                 ('point_num', 10),
-                ('distance_threshold', 0.15),
-                ('ransac_n', 3),
+                ('distance_threshold', 0.06),
+                ('ransac_n', 4),
                 ('num_iterations', 200),
                 ('horizontal_plane_gradient', 0.8),
 
@@ -51,27 +49,36 @@ class LidarNode(Node):
                 # LUT bounding box filter params
                 ('lut_max_distance', 20.0),
                 ('lut_z', [-2.0, 2.0]),
-                ('lut_max_cone_lateral', 4.0), # Increased from 2.5 to match y bounds [-4.0, 8.0]
-                ('lut_max_track_half_width', 3.0), # Increased from 2.0 to allow up to 6m wide corridors
+                ('lut_max_cone_lateral', 2.5),
+                ('lut_max_track_half_width', 2.0),
+                
+                # LUT cone classifier parameters
+                ('lut_cone_radius', 0.1),
+                ('lut_cone_height', 0.3),
+                ('lut_min_cone_points', 5),
+                ('lut_l2_loss_threshold', 0.05),
+                ('lut_lin_loss_percentage', 0.1),
+                
+                # LUT building parameters
+                ('lut_resolution', 0.1),
+                ('lut_ema_alpha', 0.2),
+                ('lut_max_width_change', 0.2),
+                ('lut_tolerance_multiplier', 5.0),
+                
+                # LUT filtering parameters
+                ('lut_filter_margin', 1.5),
+                ('lut_filter_x_margin_before', 1.0),
+                ('lut_filter_x_margin_after', 2.0),
 
                 ('voxel_size', 0.03),
 
-                # Optional CSV log file for per-frame timings
-                # If empty, a default timings_<filter_algorithm>.csv will be used
                 ('timing_log_path', ''),
-
-                # Optional directory to save filtered frames as PCD files.
-                # If empty, no frames are written.
                 ('save_frame_dir', ''),
-
-                # Maximum number of frames to save per run when
-                # save_frame_dir is set. If 1, behavior matches the
-                # original single-frame export.
                 ('save_frame_limit', 1),
 
-                ('cluster_distance_threshold', 0.5),
-                ('cluster_min_size', 5),
-                ('cluster_max_size', 500)
+                ('cluster_distance_threshold', 0.2),
+                ('cluster_min_size', 2),
+                ('cluster_max_size', 100)
             ]
         )
 
@@ -113,6 +120,18 @@ class LidarNode(Node):
         lut_z = self.get_parameter('lut_z').value
         lut_max_cone_lateral = self.get_parameter('lut_max_cone_lateral').get_parameter_value().double_value
         lut_max_track_half_width = self.get_parameter('lut_max_track_half_width').get_parameter_value().double_value
+        lut_cone_radius = self.get_parameter('lut_cone_radius').get_parameter_value().double_value
+        lut_cone_height = self.get_parameter('lut_cone_height').get_parameter_value().double_value
+        lut_min_cone_points = self.get_parameter('lut_min_cone_points').get_parameter_value().integer_value
+        lut_l2_loss_threshold = self.get_parameter('lut_l2_loss_threshold').get_parameter_value().double_value
+        lut_lin_loss_percentage = self.get_parameter('lut_lin_loss_percentage').get_parameter_value().double_value
+        lut_resolution = self.get_parameter('lut_resolution').get_parameter_value().double_value
+        lut_ema_alpha = self.get_parameter('lut_ema_alpha').get_parameter_value().double_value
+        lut_max_width_change = self.get_parameter('lut_max_width_change').get_parameter_value().double_value
+        lut_tolerance_multiplier = self.get_parameter('lut_tolerance_multiplier').get_parameter_value().double_value
+        lut_filter_margin = self.get_parameter('lut_filter_margin').get_parameter_value().double_value
+        lut_filter_x_margin_before = self.get_parameter('lut_filter_x_margin_before').get_parameter_value().double_value
+        lut_filter_x_margin_after = self.get_parameter('lut_filter_x_margin_after').get_parameter_value().double_value
 
         self.lut_filter = LUTBoundingBoxFilter(
             max_distance=lut_max_distance,
@@ -126,6 +145,18 @@ class LidarNode(Node):
             horizontal_plane_gradient=self.get_parameter('horizontal_plane_gradient').get_parameter_value().double_value,
             max_cone_lateral=lut_max_cone_lateral,
             max_track_half_width=lut_max_track_half_width,
+            cone_radius=lut_cone_radius,
+            cone_height=lut_cone_height,
+            min_cone_points=lut_min_cone_points,
+            l2_loss_threshold=lut_l2_loss_threshold,
+            lin_loss_percentage=lut_lin_loss_percentage,
+            lut_resolution=lut_resolution,
+            lut_ema_alpha=lut_ema_alpha,
+            lut_max_width_change=lut_max_width_change,
+            lut_tolerance_multiplier=lut_tolerance_multiplier,
+            lut_filter_margin=lut_filter_margin,
+            lut_filter_x_margin_before=lut_filter_x_margin_before,
+            lut_filter_x_margin_after=lut_filter_x_margin_after,
         )
 
         # Simple distance+height bounds filter (no LUT corridor) used for
@@ -213,7 +244,7 @@ class LidarNode(Node):
             pcd = self.pizza_filter.filterPizzaSlice(pcd)
             label = 'Pizza Slice'
         elif algo_key == 'lut':
-            pcd = self.lut_filter.filterWithLUT(pcd, margin=1.5)
+            pcd = self.lut_filter.filterWithLUT(pcd)
             label = 'LUT Bounding Box'
         elif algo_key == 'lut_basic':
             # Simple distance + height bounds (no corridor, no cones)

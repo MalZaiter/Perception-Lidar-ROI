@@ -1,55 +1,63 @@
 /lidar_processor_node:
   ros__parameters:
-    # FILTERING PARAMS
-    # which ROI/filter algorithm to use: box, pizza, or lut
-    filter_algorithm: "box"
 
+    # Algorithm selection
+    # Options: box | pizza | lut | lut_basic
+    filter_algorithm: "lut"
 
-    #filter viewable bounds (used by original box filter)
+    # Box filter bounds
     x: [0.0, 8.0]
     y: [-4.0, 8.0]
     z: [-2.0, 2.0]
 
-    #car dimensions for filtering out points on the car itself
+    # Car self-filter
     car_x: [-1.0, 1.0]
     car_y: [-0.5, 0.5]
 
+    # Ground removal (shared by all algorithms)
+    ground_level: 0.15                # z below which points are ground candidates (m)
+    point_num: 10                     # minimum ground candidates to attempt RANSAC
+    distance_threshold: 0.15          # RANSAC inlier distance (m)
+    ransac_n: 4                       # RANSAC sample size
+    num_iterations: 200               # RANSAC iterations
+    horizontal_plane_gradient: 0.7    # minimum |normal_z| to accept a plane
 
-
-
-    #ground and wall removal 
-
-    #ground removal params
-    ground_level: 0.1 #10cm
-    point_num: 10
-    distance_threshold: 0.06
-    ransac_n: 4
-    num_iterations: 200
-    horizontal_plane_gradient: 0.8 
-
-    # Downsampling voxel size
+    # Downsampling
     voxel_size: 0.03
 
-    # Pizza slice filter specific params
+    # Pizza slice filter
     pizza_max_distance: 20.0
     pizza_min_angle_deg: -45.0
     pizza_max_angle_deg: 45.0
     pizza_z: [-2.0, 2.0]
 
-    # LUT bounding box filter specific params (basic distance/z bounds
-    # are used unless a LUT has been built)
+    # LUT filter: basic bounds
     lut_max_distance: 20.0
-    lut_z: [-2.0, 2.0]
-    
-    # LUT cone detection parameters - stricter values prevent false positives
-    # from poisoning the corridor in early frames
-    lut_max_cone_lateral: 2.5  # max lateral distance from centerline (meters)
-    lut_max_track_half_width: 2.0  # max half-width of left/right cone pair
+    lut_z: [-0.3, 2.0]
 
+    # LUT filter: corridor / cone gating
+    lut_max_cone_lateral: 2.5       # max |y| for a cone to be considered on-track (m)
+    lut_max_track_half_width: 2.0   # max half-width of a valid left/right cone pair (m)
 
-    #CLUSTERING PARAMS
+    # ──────────────────────────── LUT filter: cone classifier ────────────────────────────
+    lut_cone_radius: 0.1
+    lut_cone_height: 0.3
+    lut_min_cone_points: 5
+    lut_l2_loss_threshold: 0.05
+    lut_lin_loss_percentage: 0.1
 
-    # Clustering Params
-    cluster_distance_threshold: 0.2 #20 cm between points
+    # ──────────────────────────── LUT filter: LUT building ────────────────────────────
+    lut_resolution: 0.1             # x step size for LUT entries (m)
+    lut_ema_alpha: 0.2              # EMA smoothing factor (0=frozen, 1=no memory)
+    lut_max_width_change: 0.2       # max accepted width change per update (m)
+    lut_tolerance_multiplier: 5.0   # cone pairing tolerance = resolution × this
+
+    # ──────────────────────────── LUT filter: filtering margins ────────────────────────────
+    lut_filter_margin: 1.5          # lateral margin added around corridor half-width (m)
+    lut_filter_x_margin_before: 1.0 # x margin before corridor start (m)
+    lut_filter_x_margin_after: 2.0  # x margin after corridor end (m)
+
+    # ──────────────────────────── Clustering ────────────────────────────
+    cluster_distance_threshold: 0.2
     cluster_min_size: 2
     cluster_max_size: 100

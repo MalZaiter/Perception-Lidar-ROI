@@ -2,7 +2,7 @@
 LUT Bounding Box Filter - Uses cone detection to create corridors for filtering
 Builds a lookup table based on cone positions and track width
 """
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 import open3d as o3d
 import numpy as np
 from .helpers import SingletonMeta
@@ -18,58 +18,36 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
     """
 
     def __init__(
-        self,
-        max_distance: float,
-        z_min: float,
-        z_max: float,
-        ground_level: float,
-        point_num: int,
-        distance_threshold: float,
-        ransac_n: int,
-        num_iterations: int,
-        horizontal_plane_gradient: float,
-        cone_radius: float = 0.1,
-        cone_height: float = 0.3,
-        # Match ConeClassifier settings used in lidar_processor_node
-        min_cone_points: int = 5,
-        l2_loss_threshold: float = 0.05,
-        lin_loss_percentage: float = 0.1,
-        max_track_half_width: float = 2.0,
-        max_cone_lateral: float = 2.5,
-        max_lut_size: int = 50,
-    ):
-        """
-        Parameters
-        ----------
-        max_distance : float
-        Maximum radial distance from lidar
-        z_min : float
-        Minimum height to keep
-        z_max : float
-        Maximum height to keep
-        ground_level : float
-        Level below which to consider ground points
-        point_num : int
-        Minimum number of points for ground removal
-        distance_threshold : float
-        RANSAC distance threshold
-        ransac_n : int
-        RANSAC sample size
-        num_iterations : int
-        RANSAC number of iterations
-        horizontal_plane_gradient : float
-        Horizontal plane gradient threshold
-        cone_radius : float
-        Cone radius for classification
-        cone_height : float
-        Cone height for classification
-        min_cone_points : int
-        Minimum points to consider for cone detection
-        l2_loss_threshold : float
-        L2 loss threshold for cone classification
-        lin_loss_percentage : float
-        Linearization loss threshold for cone classification
-        """
+    self,
+    # Shared ground-removal / bounds params
+    max_distance: float,
+    z_min: float,
+    z_max: float,
+    ground_level: float,
+    point_num: int,
+    distance_threshold: float,
+    ransac_n: int,
+    num_iterations: int,
+    horizontal_plane_gradient: float,
+    # Cone gating
+    max_track_half_width: float,
+    max_cone_lateral: float,
+    # Cone classifier
+    cone_radius: float,
+    cone_height: float,
+    min_cone_points: int,
+    l2_loss_threshold: float,
+    lin_loss_percentage: float,
+    # LUT building
+    lut_resolution: float,
+    lut_ema_alpha: float,
+    lut_max_width_change: float,
+    lut_tolerance_multiplier: float,
+    # LUT filtering
+    lut_filter_margin: float,
+    lut_filter_x_margin_before: float,
+    lut_filter_x_margin_after: float,
+):
         self.max_distance = max_distance
         self.z_min = z_min
         self.z_max = z_max
@@ -104,11 +82,19 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         # considered part of the track when building the LUT.
         self.max_cone_lateral: float = max_cone_lateral
 
+        # LUT building parameters from YAML
+        self.lut_resolution: float = lut_resolution
+        self.lut_ema_alpha: float = lut_ema_alpha
+        self.lut_max_width_change: float = lut_max_width_change
+        self.lut_tolerance_multiplier: float = lut_tolerance_multiplier
+        
+        # LUT filtering parameters from YAML
+        self.lut_filter_margin: float = lut_filter_margin
+        self.lut_filter_x_margin_before: float = lut_filter_x_margin_before
+        self.lut_filter_x_margin_after: float = lut_filter_x_margin_after
+
         # Diagnostics storage for corridor filtering stats
         self._lut_filter_diagnostics = {}
-        
-        # Maximum LUT size - enforce to prevent unbounded memory growth
-        self._max_lut_size = max_lut_size
 
     def detectCones(
         self, pcd: o3d.geometry.PointCloud, clustering_results: List[np.ndarray]
@@ -143,7 +129,7 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         self.detected_cones = cones
         return cones
 
-    def buildLUT(self, cones: List[np.ndarray], resolution: float = 0.1) -> None:
+    def buildLUT(self, cones: List[np.ndarray]) -> None:
         """
         Build Look-Up Table (LUT) from detected cone positions.
         Creates a centerline and width data structure for fast filtering.
@@ -158,8 +144,6 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         ----------
         cones : List[np.ndarray]
         List of cone centers
-        resolution : float
-        Resolution of the LUT (step size in x direction)
         """
         # Gate cones by lateral distance and range so off-track
         # detections do not widen the corridor.
@@ -184,12 +168,12 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         x_max = cones_array[:, 0].max()
 
         # Build LUT by x position
-        x_positions = np.arange(x_min, x_max + resolution, resolution)
+        x_positions = np.arange(x_min, x_max + self.lut_resolution, self.lut_resolution)
 
         for x in x_positions:
             # Find cones near this x position (within tolerance)
-            # Widened from 1.5x to 5.0x to allow cones spaced 3-5m apart to pair
-            tolerance = resolution * 5.0
+            # Multiplier allows cones spaced 3-5m apart to pair
+            tolerance = self.lut_resolution * self.lut_tolerance_multiplier
             nearby_cones = cones_array[
                 np.abs(cones_array[:, 0] - x) <= tolerance
             ]
@@ -213,15 +197,13 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
                         continue
 
                     # EMA smoothing and rate limiting to reject abrupt changes
-                    alpha = 0.2  # Exponential moving average factor
-                    max_width_change = 0.2  # Maximum acceptable width change (meters)
                     if x in self.lut_width:
                         # Check for abrupt width changes (possible mislabeling or outliers)
-                        if abs(half_width - self.lut_width[x]) > max_width_change:
+                        if abs(half_width - self.lut_width[x]) > self.lut_max_width_change:
                             continue  # Skip this entry; don't update
                         # Apply EMA smoothing to existing entries
-                        self.lut_centerline[x] = alpha * y_center + (1 - alpha) * self.lut_centerline[x]
-                        self.lut_width[x] = alpha * half_width + (1 - alpha) * self.lut_width[x]
+                        self.lut_centerline[x] = self.lut_ema_alpha * y_center + (1 - self.lut_ema_alpha) * self.lut_centerline[x]
+                        self.lut_width[x] = self.lut_ema_alpha * half_width + (1 - self.lut_ema_alpha) * self.lut_width[x]
                     else:
                         # First time seeing this X position
                         self.lut_centerline[x] = y_center
@@ -245,22 +227,16 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
                 for x_old in x_keys_to_remove:
                     self.lut_centerline.pop(x_old, None)
                     self.lut_width.pop(x_old, None)
-        # DEBUG: Confirm LUT population success
-        print(f"[buildLUT] gated={len(gated_cones)} cones, lut_size={len(self.lut_centerline)}")
 
-    def filterWithLUT(self, pcd: o3d.geometry.PointCloud,
-                      margin: float = 0.5) -> o3d.geometry.PointCloud:
+    def filterWithLUT(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """
         Filter point cloud using the Look-Up Table (corridor filtering).
+        Uses margin and x-bounds from YAML parameters.
         
         Parameters
         ----------
         pcd : o3d.geometry.PointCloud
             Input point cloud
-        margin : float
-            Additional lateral margin around the corridor (in meters).
-            Default is 3.0 m to allow for curves and slight
-            misalignments while still rejecting far-off noise.
             
         Returns
         -------
@@ -277,16 +253,13 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         z = points[:, 2]
 
         lut_x_sorted = np.array(sorted(self.lut_centerline.keys()))
-        if len(lut_x_sorted) == 0:
-            return self._filterBasicBounds(pcd)
-
         lut_y_arr = np.array([self.lut_centerline[xi] for xi in lut_x_sorted])
         lut_w_arr = np.array([self.lut_width[xi] for xi in lut_x_sorted])
 
         lut_x_min = float(lut_x_sorted[0])
         lut_x_max = float(lut_x_sorted[-1])
 
-        x_in_range = (x >= lut_x_min - 1.0) & (x <= lut_x_max + 2.0)
+        x_in_range = (x >= lut_x_min - self.lut_filter_x_margin_before) & (x <= lut_x_max + self.lut_filter_x_margin_after)
 
         idx = np.searchsorted(lut_x_sorted, x, side='left')
         idx = np.clip(idx, 0, len(lut_x_sorted) - 1)
@@ -298,7 +271,7 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
         y_center = lut_y_arr[idx]
         half_width = lut_w_arr[idx]
 
-        corridor_mask = np.abs(y - y_center) <= (half_width + margin)
+        corridor_mask = np.abs(y - y_center) <= (half_width + self.lut_filter_margin)
 
         distance = np.sqrt(x**2 + y**2)
         bound_mask = (
@@ -314,7 +287,7 @@ class LUTBoundingBoxFilter(metaclass=SingletonMeta):
             'corridor_pass': int(np.sum(corridor_mask & x_in_range)),
             'bound_pass': int(np.sum(bound_mask)),
             'final_output': int(np.sum(mask)),
-            'margin': margin,
+            'margin': self.lut_filter_margin,
             'lut_size': len(self.lut_centerline),
         }
 
